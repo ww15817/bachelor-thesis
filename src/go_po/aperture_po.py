@@ -160,10 +160,13 @@ def far_field_pattern(
 
     w = af.weights if af.weights is not None else np.ones(af.n_points)
 
-    # 远场积分：对每个 theta 做一次求和
-    # exp(j kx x) 的形状 (n_theta, n_points)
-    phase = np.exp(1j * np.outer(kx, af.x))
-    field = phase @ (w * af.e)
+    # 逐 theta 循环，不一次性构造 (n_theta, n_points) 的复数组。
+    # 2026-11-04 审查 C-01：旧写法在 validate_po.py 默认参数下要 4.4 GB，
+    # 整个脚本峰值 10 GB，8 GB 笔记本直接挂。数值逐位不变（同一个求和，分批做）。
+    we = w * af.e
+    field = np.empty(th.size, dtype=complex)
+    for i in range(th.size):
+        field[i] = np.sum(np.exp(1j * kx[i] * af.x) * we)
 
     if obliquity:
         field = field * (1.0 + np.cos(th)) / 2.0

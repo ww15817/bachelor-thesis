@@ -5,6 +5,7 @@ scipy>=1.11
 # 数据与文件
 h5py>=3.10
 pandas>=2.1
+pyyaml>=6.0          # config.py 直接 import yaml（2026-11-04 审查 C-05：之前漏了）
 
 # 可视化
 matplotlib>=3.8

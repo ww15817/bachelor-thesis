@@ -171,7 +171,11 @@ def run_pipeline(
     say(f"      均匀口径自检  max|数值-解析| = {airy_err:.2e}")
 
     peak_db = 20.0 * np.log10(max(abs(pat[0]), 1e-12))
-    say(f"      峰值增益损失 {peak_db:.3f} dB")
+    # 2026-11-04 审查 C-09：这个数不随网格加密收敛（n_rho 200/400/800/1600 给出
+    # -0.4786 / -0.4898 / -0.4842 / -0.4870，抖动 ±0.006）。原因是遮挡台阶
+    # rho=Rb 落在网格环之间，整个环被整体判给或判走。所以只给两位小数，
+    # 论文里写「约 -0.49 dB」；要三位小数得对 Rb 所在环做亚网格面积加权。
+    say(f"      口径场幅损失 {peak_db:.2f} dB（遮挡台阶在网格之间，只到 ±0.01 dB）")
 
     # 效率预算：把溢出、照明、遮挡三项并起来，给绝对 dBi。
     # 2026-11-04 审查指出「-0.479 dB」只是遮挡 + 锥削的相对损失，
@@ -185,15 +189,24 @@ def run_pipeline(
     aperture_area = np.pi * geo.R**2
     eta_illum = sum_a**2 / (aperture_area * sum_a2)
     eta_block = 1.0 - float(geo.blocking_ratio)
-    eta_total = spill_eta * eta_illum * eta_block
+
+    # 归一约定（2026-11-04 审查 C-02，选定方案 A）：
+    #   方向性定义 D = 4πU_max / P_rad，P_rad 是**全部**辐射功率。
+    #   被副面挡掉的那份仍然辐射出去（只是不进主波束），所以它只降低主瓣，
+    #   不减总辐射功率 —— 不该单独乘 (1-b)。
+    #   于是直接拿 PO 的场幅比（peak_db，含锥削 + 遮挡）折成功率。
+    #   eta_illum 与 eta_block 只作为诊断量打印，不参与总效率。
+    eta_taper_block = 10.0 ** (peak_db / 10.0)
+    eta_total = spill_eta * eta_taper_block
     # 理想均匀口径（η=1）的增益：(πD/λ)²
     gain_ideal_db = 10.0 * np.log10((np.pi * geo.D / geo.lam) ** 2)
     gain_db = gain_ideal_db + 10.0 * np.log10(max(eta_total, 1e-12))
     say(
-        f"      照明效率 {eta_illum:.4f}  遮挡效率 {eta_block:.4f}"
+        f"      照明效率 {eta_illum:.4f}  遮挡效率 {eta_block:.4f}（诊断量，不乘进总效率）"
         f"  → 总效率 {eta_total:.4f}  绝对增益 {gain_db:.2f} dBi"
         f"  (理想 {gain_ideal_db:.2f} dBi)"
     )
+
 
 
     metrics = {
@@ -203,7 +216,7 @@ def run_pipeline(
         "准直误差": f"{collim:.2e}",
         "光程起伏": f"{ripple:.2e}",
         "艾里自检偏差": f"{airy_err:.2e}",
-        "峰值增益损失": f"{peak_db:.3f} dB",
+        "口径场幅损失": f"{peak_db:.2f} dB",
         "溢出发射效率": f"{spill_eta:.4f}",
         "照明效率": f"{eta_illum:.4f}",
         "总效率": f"{eta_total:.4f}",
@@ -217,6 +230,11 @@ def run_pipeline(
         "准直误差达标": collim < 1e-12,
         "等光程达标": ripple < 1e-10,
         "艾里自检达标": airy_err < 5e-3,
+        # 2026-11-04 审查 C-03：前五项验的全是「几何和积分器对不对」，
+        # 75% 功率溢出的算例照样判「通过」。这条管能量分配。
+        # 阈值 0.2 只挡明显病态——fd05 对照算例（溢出 0.2452）要放行，
+        # 它是故意做差的对照，不是错误。
+        "溢出可接受": bool(spill_eta > 0.2),
     }
     ok = all(checks.values())
 

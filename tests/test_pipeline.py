@@ -1,4 +1,4 @@
-"""端到端流水线：配置文件进，结果文件出。"""
+﻿"""端到端流水线：配置文件进，结果文件出。"""
 
 import json
 
@@ -50,8 +50,8 @@ def test_pipeline_gain_accounts_for_blockage(cfg, tmp_path):
 
     ratio_base = float(base.metrics["遮挡面积比"].split()[0]) / 100.0
     ratio_blocked = float(blocked.metrics["遮挡面积比"].split()[0]) / 100.0
-    loss_base = float(base.metrics["峰值增益损失"].split()[0])
-    loss_blocked = float(blocked.metrics["峰值增益损失"].split()[0])
+    loss_base = float(base.metrics["口径场幅损失"].split()[0])
+    loss_blocked = float(blocked.metrics["口径场幅损失"].split()[0])
 
     assert ratio_blocked > ratio_base
 

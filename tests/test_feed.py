@@ -213,4 +213,27 @@ def test_feed_directivity_rejects_negative_q():
         feed_directivity_dbi(-1.0)
 
 
+def test_spill_efficiency_matches_numeric_integral():
+    """溢出效率 ``1 - cos^(q+1)(θe)`` 必须与 cos^q 功率方向图的数值积分一致。
+
+    2026-11-04 审查 C-04：这个式子在流水线里是主项（q=8 时 −4.49 dB），
+    但零覆盖。把 ``cos^(q+1)`` 写成 ``cos^q`` 会让 q=8 得 0.323 而非 0.356，
+    差 0.4 dB，而当时 57 条测试全绿——只有肉眼看数字才可能发现。
+
+    裁判用数值积分，不用被测公式自身。
+    """
+    theta_edge = np.radians(17.7613)   # 20λ/F0.4 算例的副面张角
+    theta = np.linspace(0.0, 0.5 * np.pi, 400001)
+    for q in (4.0, 8.0, 47.0):
+        g = cos_power_pattern(q)       # 返回电压 cos^(q/2)，平方才是功率
+        power = g(theta) ** 2 * np.sin(theta)
+        inside = theta <= theta_edge
+        numeric = np.trapezoid(power[inside], theta[inside]) / np.trapezoid(
+            power, theta
+        )
+        analytic = 1.0 - np.cos(theta_edge) ** (q + 1.0)
+        assert abs(numeric - analytic) < 1e-6, (q, numeric, analytic)
+
+
+
 

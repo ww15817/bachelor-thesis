@@ -22,12 +22,14 @@ scripts/                       环境安装与一键脚本
 src/
   common/                      公共常量、坐标与单位约定
   go_po/                       自研几何光学 / 物理光学积分
-  openems/                     openEMS 馈源建模与导出
-  fenics/                      FEniCSx 结构有限元与面板变形
+  fenics/                      FEniCSx 结构有限元与面板变形（当前只有环境自检）
 examples/cassegrain_20lambda/  统一算例
-data/                          模型与结果数据
-notebooks/                     分析用 notebook
+data/results/                  运行时生成的结果（不入库）
+work/                          进度台账、审查报告、扫描脚本
 ```
+
+> `src/openems/`（openEMS 馈源建模）与 `notebooks/` 目前**尚未提交**，属计划中部分。
+
 
 ## 快速开始
 
