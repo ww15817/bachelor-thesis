@@ -16,6 +16,7 @@ from go_po.feed import (
     aperture_illumination,
     cos_power_pattern,
     edge_taper_db,
+    feed_directivity_dbi,
     q_for_edge_taper,
     slant_range,
     theta_of_rho,
@@ -186,5 +187,30 @@ def test_q_for_edge_taper_rejects_out_of_range_angle():
     for bad in (0.0, 0.5 * np.pi, 2.0, -0.3):
         with pytest.raises(ValueError, match="theta_edge"):
             q_for_edge_taper(bad, -10.0)
+
+
+def test_cos_power_pattern_total_power_is_analytic():
+    """功率方向图的全空间积分是 2π/(q+1)（归一化前的解析值）。
+
+    这是 `feed_directivity_dbi` 的分母。约定：`cos_power_pattern` 返回**电压**
+    方向图，所以功率图是 |g|²。
+    """
+    theta = np.linspace(0.0, 0.5 * np.pi, 200001)
+    for q in (1.0, 4.0, 8.0, 20.0):
+        g = cos_power_pattern(q)
+        integral = 2.0 * np.pi * np.trapezoid(g(theta) ** 2 * np.sin(theta), theta)
+        assert integral == pytest.approx(2.0 * np.pi / (q + 1.0), rel=1e-6)
+
+
+def test_feed_directivity_matches_integral():
+    """方向性 D = 4π/∫功率dΩ = 2(q+1)，换算成 dBi。q=8 应为 12.55 dBi。"""
+    for q, expect in ((1.0, 6.02), (4.0, 10.00), (8.0, 12.55), (20.0, 16.23)):
+        assert feed_directivity_dbi(q) == pytest.approx(expect, abs=0.01)
+
+
+def test_feed_directivity_rejects_negative_q():
+    with pytest.raises(ValueError, match="q"):
+        feed_directivity_dbi(-1.0)
+
 
 

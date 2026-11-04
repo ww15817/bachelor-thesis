@@ -148,3 +148,24 @@ def q_for_edge_taper(theta_edge: float, target_db: float) -> float:
     # g(theta) = cos^(q/2)，不是 cos^q，所以解出来要乘 2
     return float(2.0 * np.log(ratio) / np.log(np.cos(th)))
 
+
+def feed_directivity_dbi(q: float) -> float:
+    """``cos^q`` 功率方向图在全空间的方向性（dBi）。
+
+    ``cos_power_pattern(q)`` 只给相对形状，没有做 ``∫|g|²dΩ = 1`` 归一化，
+    所以拿它算不出绝对增益。这条补上那个缺口：
+
+        ∫ g² dΩ = 2π ∫_0^{π/2} cos^q(θ) sin(θ) dθ = 2π/(q+1)
+        D = 4π / (2π/(q+1)) = 2(q+1)
+
+    q=8 时 12.55 dBi，q=4 时 10 dBi。
+
+    用途：论文若要写馈源增益或口径效率（都是绝对量），用这个换算，
+    不要去改 ``cos_power_pattern`` 的返回值——那会悄悄改掉所有相对结果。
+    """
+    qv = float(q)
+    if qv < 0.0:
+        raise ValueError(f"q 必须非负，当前 {qv}")
+    return float(10.0 * np.log10(2.0 * (qv + 1.0)))
+
+
