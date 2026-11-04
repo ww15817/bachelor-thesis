@@ -16,6 +16,7 @@ from go_po.feed import (
     aperture_illumination,
     cos_power_pattern,
     edge_taper_db,
+    q_for_edge_taper,
     slant_range,
     theta_of_rho,
 )
@@ -154,4 +155,36 @@ def test_aperture_illumination_edge_normalisation():
             1.0 - target
         ) / (analytic_amp(0.0) - analytic_amp(DISH.radius))
         assert float(amp(rho_mid)) == pytest.approx(expected_mid, rel=1e-12)
+
+
+def test_q_for_edge_taper_round_trip():
+    """反解 q 必须能回到原值：给 q 算锥削，再拿锥削反解。
+
+    这条是往返恒等式，能抓住漏因子 2 这类错——第一版漏了，q=8 会解回 4。
+    ``cos_power_pattern(q)`` 返回的是**电压**方向图 ``cos^(q/2)``，
+    所以锥削 = ``cos^(q/2)(θ)·cos²(θ/2)``。
+    """
+    theta_edge = np.arctan(DISH.radius / (2.0 * DISH.focal_length))
+    for q_true in (2.0, 4.0, 8.0, 23.0):
+        g = cos_power_pattern(q_true)
+        taper = 20.0 * np.log10(
+            float(g(theta_edge)) * np.cos(theta_edge / 2.0) ** 2
+        )
+        q_back = q_for_edge_taper(theta_edge, taper)
+        assert q_back == pytest.approx(q_true, rel=1e-12)
+
+
+def test_q_for_edge_taper_rejects_positive_taper():
+    """边缘比中心还亮（锥削为正）物理上做不到，必须抛错，不许返回一个假数。"""
+    theta_edge = np.radians(17.76)
+    with pytest.raises(ValueError, match="做不到"):
+        q_for_edge_taper(theta_edge, 1.0)
+
+
+def test_q_for_edge_taper_rejects_out_of_range_angle():
+    """theta_edge 必须在 (0, π/2) 开区间内。"""
+    for bad in (0.0, 0.5 * np.pi, 2.0, -0.3):
+        with pytest.raises(ValueError, match="theta_edge"):
+            q_for_edge_taper(bad, -10.0)
+
 
