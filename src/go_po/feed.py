@@ -70,7 +70,10 @@ def aperture_illumination(
         return raw
 
     centre = float(np.ravel(raw(np.array([0.0])))[0])
-    edge = float(np.ravel(raw(np.array([dish.half_angle])))[0])
+    # raw() 吃的是**口径半径 rho**，不是角度。原来这里传的是 dish.half_angle
+    # （1.117 rad），等于把 -10 dB 套在 rho≈1.1λ 处，真正的边缘 rho=R 掉到 -14.5 dB。
+    # 2026-11-04 修正为口径半径。
+    edge = float(np.ravel(raw(np.array([dish.radius])))[0])
     target = 10.0 ** (normalize_edge_db / 20.0)
 
     def amp(rho):
