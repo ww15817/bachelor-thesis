@@ -173,6 +173,29 @@ def run_pipeline(
     peak_db = 20.0 * np.log10(max(abs(pat[0]), 1e-12))
     say(f"      峰值增益损失 {peak_db:.3f} dB")
 
+    # 效率预算：把溢出、照明、遮挡三项并起来，给绝对 dBi。
+    # 2026-11-04 审查指出「-0.479 dB」只是遮挡 + 锥削的相对损失，
+    # 溢出发射那 -4.49 dB 一直不在账上。这里补全。
+    #
+    # 口径照明效率（标准定义，均匀照明时 = 1）：
+    #   η_illum = |∫A dA|² / (面积 · ∫|A|² dA)
+    amp_on_grid = np.interp(grid_rho, rho_tab, amp_tab)
+    sum_a = float(np.sum(amp_on_grid * grid_dA))
+    sum_a2 = float(np.sum(amp_on_grid**2 * grid_dA))
+    aperture_area = np.pi * geo.R**2
+    eta_illum = sum_a**2 / (aperture_area * sum_a2)
+    eta_block = 1.0 - float(geo.blocking_ratio)
+    eta_total = spill_eta * eta_illum * eta_block
+    # 理想均匀口径（η=1）的增益：(πD/λ)²
+    gain_ideal_db = 10.0 * np.log10((np.pi * geo.D / geo.lam) ** 2)
+    gain_db = gain_ideal_db + 10.0 * np.log10(max(eta_total, 1e-12))
+    say(
+        f"      照明效率 {eta_illum:.4f}  遮挡效率 {eta_block:.4f}"
+        f"  → 总效率 {eta_total:.4f}  绝对增益 {gain_db:.2f} dBi"
+        f"  (理想 {gain_ideal_db:.2f} dBi)"
+    )
+
+
     metrics = {
         "近焦点误差": f"{abs(geo.z_focus_near - geo.F):.2e}",
         "遮挡面积比": f"{geo.blocking_ratio*100:.3f} %",
