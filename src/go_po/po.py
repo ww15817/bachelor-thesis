@@ -97,12 +97,17 @@ def far_field_aperture(
     u = np.sin(theta) * np.cos(phi)
     v = np.sin(theta) * np.sin(phi)
 
-    # phase[k, i, j] = k * rho_ij * (u_k cos(phi_a) + v_k sin(phi_a))
-    phase = k * rho[None, :, :] * (
-        u[:, None, None] * np.cos(phi_a)[None, :, :]
-        + v[:, None, None] * np.sin(phi_a)[None, :, :]
-    )
-    field = np.sum(amp[None, :, :] * np.exp(1j * phase) * dA[None, :, :], axis=(1, 2))
+    # 按 theta 逐个积分，不一次性构造 (n_theta, n_rho, n_phi) 的复数组。
+    # 2026-11-04 WorkBuddy 审查：旧写法默认算例就要 1 GB，validate_po 单次 6 GB，
+    # 8 GB 的笔记本直接挂。逐 theta 循环后峰值只跟单张网格有关（约 1 MB），
+    # 数值结果保持不变（同一个求和，只是分批）。
+    cos_phi = np.cos(phi_a)
+    sin_phi = np.sin(phi_a)
+    field = np.empty(theta.shape[0], dtype=complex)
+    for i in range(theta.shape[0]):
+        ph = k * rho * (u[i] * cos_phi + v[i] * sin_phi)
+        field[i] = np.sum(amp * np.exp(1j * ph) * dA)
+
 
     if obliquity:
         field = field * (1.0 + np.cos(theta)) / 2.0

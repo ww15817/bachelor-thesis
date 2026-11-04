@@ -19,7 +19,7 @@ from common.cassegrain import Cassegrain
 from go_po.feed import cos_power_pattern
 from go_po.geometry import build_polar_grid
 from go_po.po import analytic_uniform_circular_aperture, far_field_aperture
-from go_po.rays import trace_rays
+from go_po.rays import feed_half_angle_for_edge, trace_rays
 
 __all__ = ["PipelineResult", "run_pipeline"]
 
@@ -126,6 +126,19 @@ def run_pipeline(
         max(abs(float(amp_tab[-1])) / max(abs(float(amp_tab[0])), 1e-12), 1e-12)
     )
     say(f"      口径边缘锥削 {taper_db:.2f} dB  (q={cfg.feed.q:g})")
+
+    # 溢出发射：馈源波束比副面张角宽时，有一部分功率根本没打到副面。
+    # 2026-11-04 WorkBuddy 审查指出：流水线用 ∫A dA 归一化，只认「打到口径的那部分功率」，
+    # 溢出被约掉了，所以任何数字里都看不到它。q=8 时这一项是 -4.5 dB，比遮挡和锥削都大。
+    #
+    # 口径方向图的功率按 cos^q 计，打到副面的比例：
+    #   ∫_0^{θe} cos^q sinθ dθ / ∫_0^{π/2} cos^q sinθ dθ = 1 - cos^(q+1)(θe)
+    theta_edge = float(feed_half_angle_for_edge(geo))
+    spill_eta = 1.0 - np.cos(theta_edge) ** (float(cfg.feed.q) + 1.0)
+    say(
+        f"      溢出发射效率 {spill_eta:.4f}  ({10.0 * np.log10(spill_eta):+.2f} dB)"
+        f"   副面张角 {np.degrees(theta_edge):.2f}°"
+    )
     if cfg.feed.edge_taper_db is not None:
         gap = abs(taper_db - float(cfg.feed.edge_taper_db))
         if gap > 1.0:
