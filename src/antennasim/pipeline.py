@@ -204,6 +204,11 @@ def run_pipeline(
         "光程起伏": f"{ripple:.2e}",
         "艾里自检偏差": f"{airy_err:.2e}",
         "峰值增益损失": f"{peak_db:.3f} dB",
+        "溢出发射效率": f"{spill_eta:.4f}",
+        "照明效率": f"{eta_illum:.4f}",
+        "总效率": f"{eta_total:.4f}",
+        "绝对增益": f"{gain_db:.2f} dBi",
+        "理想增益": f"{gain_ideal_db:.2f} dBi",
     }
 
     checks = {
