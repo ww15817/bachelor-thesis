@@ -30,7 +30,7 @@ work/dsh-session/
 .pytest_cache/
 *.egg-info/
 *.tmp
-*.bak
+*.bak*
 
 # 生成物与办公软件残留（2026-11-04 审查 C-08）
 outputs/*.txt

@@ -1,5 +1,5 @@
 # 数值计算基础
-numpy>=1.26
+numpy>=2.0   # np.trapezoid 是 2.0 起才有的（审查 C-16）
 scipy>=1.11
 
 # 数据与文件

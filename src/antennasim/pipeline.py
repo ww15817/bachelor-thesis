@@ -184,25 +184,29 @@ def run_pipeline(
     # 口径照明效率（标准定义，均匀照明时 = 1）：
     #   η_illum = |∫A dA|² / (面积 · ∫|A|² dA)
     amp_on_grid = np.interp(grid_rho, rho_tab, amp_tab)
+    aperture_area = np.pi * geo.R**2
     sum_a = float(np.sum(amp_on_grid * grid_dA))
     sum_a2 = float(np.sum(amp_on_grid**2 * grid_dA))
-    aperture_area = np.pi * geo.R**2
     eta_illum = sum_a**2 / (aperture_area * sum_a2)
     eta_block = 1.0 - float(geo.blocking_ratio)
 
-    # 归一约定（2026-11-04 审查 C-02，选定方案 A）：
-    #   方向性定义 D = 4πU_max / P_rad，P_rad 是**全部**辐射功率。
-    #   被副面挡掉的那份仍然辐射出去（只是不进主波束），所以它只降低主瓣，
-    #   不减总辐射功率 —— 不该单独乘 (1-b)。
-    #   于是直接拿 PO 的场幅比（peak_db，含锥削 + 遮挡）折成功率。
-    #   eta_illum 与 eta_block 只作为诊断量打印，不参与总效率。
-    eta_taper_block = 10.0 ** (peak_db / 10.0)
+    # 归一约定（2026-11-05 审查 C-11 更正）：
+    #   方向性 D = 4π|∫A dA|² / (λ² ∫|A|² dA) —— 分母是 ∫|A|²，不是 (∫A)²/A。
+    #   所以效率必须回到二重积分里算，**不能从场幅比 peak_db 反推**：
+    #   peak_db 已经是「未遮挡/全口径」的场幅比，再平方等于把遮挡算了两遍
+    #   （均匀口径下给出 (1-b)²，而教科书遮挡口径是 1-b，正好差一倍 dB）。
+    #   正确做法：分子和分母都只取未遮挡区。
+    amp_un = np.where(grid_rho >= block_radius, amp_on_grid, 0.0)
+    eta_taper_block = float(np.sum(amp_un * grid_dA)) ** 2 / (
+        aperture_area * float(np.sum(amp_un**2 * grid_dA))
+    )
     eta_total = spill_eta * eta_taper_block
     # 理想均匀口径（η=1）的增益：(πD/λ)²
     gain_ideal_db = 10.0 * np.log10((np.pi * geo.D / geo.lam) ** 2)
     gain_db = gain_ideal_db + 10.0 * np.log10(max(eta_total, 1e-12))
     say(
-        f"      照明效率 {eta_illum:.4f}  遮挡效率 {eta_block:.4f}（诊断量，不乘进总效率）"
+        f"      口径效率 {eta_taper_block:.4f}"
+        f"（锥削 {eta_illum:.4f} × 遮挡 {eta_block:.4f}，诊断用）"
         f"  → 总效率 {eta_total:.4f}  绝对增益 {gain_db:.2f} dBi"
         f"  (理想 {gain_ideal_db:.2f} dBi)"
     )

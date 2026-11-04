@@ -137,7 +137,8 @@ def main() -> int:
 
     g_blocked = db(pat_blocked)[0]
     g_clear = db(pat_clear)[0]
-    print(f"[PO] 遮挡造成的峰值增益损失 = {g_blocked - g_clear:.3f} dB")
+    print(f"[PO] 遮挡造成的口径场幅损失 = {g_blocked - g_clear:.3f} dB"
+      f"（场幅比；功率等效约 {(g_blocked - g_clear) / 2:.3f} dB）")
     print(f"[PO] 无遮挡第一副瓣 = {first_sidelobe_db(pat_clear, theta):.2f} dB")
     print(f"[PO] 有遮挡第一副瓣 = {first_sidelobe_db(pat_blocked, theta):.2f} dB")
     print()
@@ -214,7 +215,7 @@ def main() -> int:
     a3.plot(ratios * 100, losses, "o-")
     a3.axvline(geo.blocking_ratio * 100, color="r", ls="--", lw=1, label="本设计点")
     a3.set_xlabel("遮挡面积比 [%]")
-    a3.set_ylabel("峰值增益损失 [dB]")
+    a3.set_ylabel("口径场幅损失 [dB]（场幅比，非增益）")
     a3.set_title("(d) 遮挡 -> 增益损失")
     a3.grid(alpha=0.3)
     a3.legend(fontsize=8)
