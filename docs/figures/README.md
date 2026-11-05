@@ -9,6 +9,9 @@
 | `m2_validation.png` | 第 4 章·Airy 验证 | `examples/cassegrain_20lambda/validate_dish.py` | 数值 PO 与解析 Airy 重合到 7e-06 |
 | `m3_cassegrain.png` | 第 2 章·几何 / 第 4 章·遮挡 | `examples/cassegrain_20lambda/m3_cassegrain.py` | 四联：几何+射线 / 口径幅度 / 方向图 / 遮挡-增益 |
 | `cassegrain_20lambda.png` | 第 4 章·主算例方向图 | `run_pipeline.py cases/cassegrain_20lambda.yaml` | 主瓣、第一副瓣、遮挡台阶 |
+| `budget_waterfall.png` | 第 4 章·效率预算 | `work/make_figures.py` | 理想 35.96 → 溢出 −4.49 → 锥削+遮挡 −0.22 → 31.24 dBi |
+| `q_scan.png` | 第 5 章·馈源优化 | `work/make_figures.py` | 最优 q=47 是平台（47–64），不是单点 |
+| `surface_error.png` | 第 6 章·灵敏度 | `work/make_figures.py` | 随机相位屏下 PO 与 Ruze 一致；确定性变形另有 ISSUE-018 |
 | `cassegrain_fd05.png` | 第 4 章·F/D 对照 | `run_pipeline.py cases/cassegrain_fd05.yaml` | fd05 比 20λ 差 1.59 dB |
 
 ## 还缺的（按论文顺序）
