@@ -90,6 +90,44 @@ def _aperture_from_rays(geo: Cassegrain, bundle, feed_pattern):
     return np.append(uniq, geo.R), np.append(avg, edge_amp)
 
 
+def _load_feed_pattern(cfg: CaseConfig, root: Path):
+    """按 ``cfg.feed.source`` 返回馈源电压方向图 ``g(theta)``。
+
+    - ``analytic``：解析 ``cos^q``
+    - ``npz``：openEMS 全波算出的方向图（P2）。读进来后按 theta=0 归一到 1，
+      再做成插值函数，这样下游 `_aperture_from_rays` 一行都不用改。
+
+    ⚠️ 矩形喇叭的 E 面和 H 面锥削差很多（ISSUE-020），而流水线假设轴对称。
+    选哪个面由 ``cfg.feed.plane`` 决定，两个面会给出不同的增益，报告里要写清。
+    """
+    if cfg.feed.source == "analytic":
+        return cos_power_pattern(cfg.feed.q)
+
+    if cfg.feed.source != "npz":
+        raise ValueError(f"未知的 feed.source：{cfg.feed.source}（只认 analytic / npz）")
+    if not cfg.feed.file:
+        raise ValueError("feed.source=npz 时必须给 feed.file")
+
+    path = Path(root) / cfg.feed.file
+    if not path.exists():
+        raise FileNotFoundError(f"找不到馈源方向图文件：{path}")
+
+    data = np.load(path, allow_pickle=True)
+    theta_deg = np.asarray(data["theta"], dtype=float)
+    e_norm = np.asarray(data["E_norm"], dtype=float)
+    phi = np.asarray(data["phi"], dtype=float)
+
+    # phi=0 是 x-z 面（H 面，受口径 x 向宽度控制）；phi=90 是 y-z 面（E 面）
+    want = 90.0 if str(cfg.feed.plane).upper() == "E" else 0.0
+    iphi = int(np.argmin(np.abs(np.mod(phi, 360.0) - want)))
+
+    e = np.abs(e_norm[:, iphi])
+    e = e / max(float(e[0]), 1e-12)        # 归一到 theta=0
+    th_rad = np.deg2rad(theta_deg)
+
+    return lambda th: np.interp(th, th_rad, e)
+
+
 def run_pipeline(
     cfg: CaseConfig,
     *,
@@ -124,7 +162,9 @@ def run_pipeline(
 
     # ---------------------------------------------------------- 3 口径
     say("[3/5] 构造口径场")
-    feed = cos_power_pattern(cfg.feed.q)
+    feed = _load_feed_pattern(cfg, root)
+    if cfg.feed.source == "npz":
+        say(f"      馈源：{cfg.feed.file}（{cfg.feed.plane} 面）")
     rho_tab, amp_tab = _aperture_from_rays(geo, bundle, feed)
     block_radius = float(geo.sub_rim()[0])
 
