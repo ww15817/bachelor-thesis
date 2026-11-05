@@ -18,6 +18,7 @@ Thumbs.db
 *.log
 *.h5
 *.vtu
+examples/openems/out_*/
 
 # 安装包与编译产物：体积大，不进仓库
 work/wsl-pkg/
