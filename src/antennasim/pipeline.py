@@ -206,12 +206,38 @@ def run_pipeline(
     grid_rho, _, grid_dA = build_polar_grid(geo.R, s.n_rho, s.n_phi)
     ref_norm = float(np.sum(np.interp(grid_rho, rho_tab, amp_tab) * grid_dA))
 
+    # ---------------------------------------------------------- 结构侧
+    # 把 FEniCSx 算出来的面板变形接进口径相位（dφ = 2kw = 4πw/λ）。
+    # 变形场是散点（板网格节点），要插值到口径的极坐标网格上。
+    phase_func = None
+    if cfg.structure.enabled:
+        if not cfg.structure.file:
+            raise ValueError("structure.enabled=true 时必须给 structure.file")
+        st_path = Path(root) / cfg.structure.file
+        if not st_path.exists():
+            raise FileNotFoundError(f"找不到变形场文件：{st_path}")
+        dfl = np.load(st_path)
+        fx, fy, fw = dfl["x"], dfl["y"], dfl["w"]
+        lam_st = float(cfg.structure.lambda_m)
+        from scipy.interpolate import griddata
+
+        def phase_func(rho, phi_a):  # noqa: F811 - 有意覆盖
+            # 口径网格是 λ 单位，变形场是米，两边都换成 λ 再插值
+            x_lam = np.asarray(rho) * np.cos(phi_a)
+            y_lam = np.asarray(rho) * np.sin(phi_a)
+            w_m = griddata((fx / lam_st, fy / lam_st), fw,
+                           (x_lam, y_lam), method="linear", fill_value=0.0)
+            return 4.0 * np.pi * (w_m / lam_st)
+
+        say(f"      结构：{cfg.structure.file}（{fw.size} 节点，λ={lam_st*1000:.1f} mm）")
+
     def illum(rho):
         a = np.interp(np.asarray(rho, dtype=float), rho_tab, amp_tab)
         return np.where(np.asarray(rho, dtype=float) >= block_radius, a, 0.0)
 
     pat = far_field_aperture(geo.R, k, illum, theta,
-                             n_rho=s.n_rho, n_phi=s.n_phi, normalize=ref_norm)
+                             n_rho=s.n_rho, n_phi=s.n_phi, normalize=ref_norm,
+                             phase_func=phase_func)
 
     # 均匀口径自检：数值 vs 解析艾里图案
     pat_ref = far_field_aperture(geo.R, k, lambda r: np.ones_like(r), theta,
@@ -250,7 +276,22 @@ def run_pipeline(
     eta_taper_block = float(np.sum(amp_un * grid_dA)) ** 2 / (
         aperture_area * float(np.sum(amp_un**2 * grid_dA))
     )
-    eta_total = spill_eta * eta_taper_block
+
+    # 结构侧：相位扰动对轴向场的影响。
+    # 上面那个 eta_taper_block 只用了**幅度**，不含相位；而结构变形是纯相位扰动，
+    # 光靠幅度预算看不出它。这里用同一次归一化，比一次「有相位 / 无相位」的轴向幅度。
+    eta_structure = 1.0
+    if phase_func is not None:
+        pat_no_phase = far_field_aperture(
+            geo.R, k, illum, np.array([0.0]),
+            n_rho=s.n_rho, n_phi=s.n_phi, normalize=ref_norm,
+        )
+        ratio = float(abs(pat[0]) / max(abs(pat_no_phase[0]), 1e-12))
+        eta_structure = ratio ** 2
+        say(f"      结构相位损失 {10.0 * np.log10(max(eta_structure, 1e-12)):.3f} dB"
+            f"（轴向场比 {ratio:.5f}）")
+
+    eta_total = spill_eta * eta_taper_block * eta_structure
     # 理想均匀口径（η=1）的增益：(πD/λ)²
     gain_ideal_db = 10.0 * np.log10((np.pi * geo.D / geo.lam) ** 2)
     gain_db = gain_ideal_db + 10.0 * np.log10(max(eta_total, 1e-12))

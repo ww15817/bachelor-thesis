@@ -1,0 +1,32 @@
+# 20λ 卡塞格伦天线算例
+# 改这个文件就能换算例，代码不用动。
+# 例如把 f_over_d 改成 0.5、magnification 改成 5，重跑即可。
+
+case:
+  name: cassegrain_structure
+  description: 20λ 卡塞格伦天线，主面 D=20λ，F/D=0.4，放大率 4
+
+geometry:
+  diameter: 20.0          # 主面口径直径，单位：波长
+  f_over_d: 0.4           # 焦径比 F/D
+  magnification: 4.0      # 双曲面放大率 M，必须 > 1
+  sub_vertex: null        # 副面顶点位置；null 表示用默认 M*F/(M+1)
+
+feed:
+  q: 8.0                  # 馈源方向图 cos^q(theta)。边缘锥削是算出来的结果，不在这里设
+
+sampling:
+  n_radial: 26            # 射线径向采样数
+  n_azimuth: 72           # 射线方位向采样数
+  n_rho: 200              # 口径积分径向采样
+  n_phi: 320              # 口径积分方位向采样
+
+output:
+  directory: data/results
+  tag: cassegrain_20lambda
+  figure: true
+
+structure:
+  enabled: true
+  file: data/feeds/plate_deflection_2mm.npz
+  lambda_m: 0.030

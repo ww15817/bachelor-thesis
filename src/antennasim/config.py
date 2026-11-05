@@ -49,6 +49,23 @@ class FeedConfig:
 
 
 @dataclass(frozen=True)
+class StructureConfig:
+    """结构侧：把 FEniCSx 算出来的面板变形接进口径相位。
+
+    ``enabled=False`` 时流水线完全不受影响（原来的行为）。
+    ``file`` 指向 ``plate_bending.py`` 导出的 npz（``x``/``y``/``w``，单位米），
+    流水线会把 ``w`` 插值到口径网格上，折成相位 ``dφ = 4π w/λ``。
+
+    ⚠️ 这个变形场有一个已知偏差：简支边施的是 ``M=0`` 而不是 ``M_nn=0``，
+    方板挠度偏低约 5.4%（ISSUE-017）。圆板更糟（−26.6%），所以结构侧定案**方板**。
+    """
+
+    enabled: bool = False
+    file: str | None = None
+    lambda_m: float = 0.030        # 工作波长（米），用来把 w 折成相位
+
+
+@dataclass(frozen=True)
 class SamplingConfig:
     n_radial: int = 26
     n_azimuth: int = 72
@@ -71,6 +88,7 @@ class CaseConfig:
     feed: FeedConfig = field(default_factory=FeedConfig)
     sampling: SamplingConfig = field(default_factory=SamplingConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
+    structure: StructureConfig = field(default_factory=StructureConfig)
 
     # ---------------------------------------------------------- 派生量
     @property
@@ -159,6 +177,7 @@ def load_config(path: str | Path) -> CaseConfig:
             feed=FeedConfig(**_section(raw, "feed")),
             sampling=SamplingConfig(**_section(raw, "sampling")),
             output=OutputConfig(**_section(raw, "output")),
+            structure=StructureConfig(**_section(raw, "structure")),
         )
     except TypeError as exc:
         # 多打一个字（比如 feed: {qq: 8}）以前会直接 traceback 出来，

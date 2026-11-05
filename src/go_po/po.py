@@ -61,6 +61,7 @@ def far_field_aperture(
     n_phi: int = 360,
     normalize: float | None = None,
     obliquity: bool = False,
+    phase_func=None,
 ):
     """Kirchhoff far field of a circular aperture.
 
@@ -103,10 +104,16 @@ def far_field_aperture(
     # 数值结果保持不变（同一个求和，只是分批）。
     cos_phi = np.cos(phi_a)
     sin_phi = np.sin(phi_a)
+    # 口径相位扰动（结构变形 → dφ = 2kw），按 (rho, phi) 给。None 表示无扰动。
+    if phase_func is not None:
+        phase_extra = np.exp(1j * np.asarray(phase_func(rho, phi_a), dtype=float))
+        amp_eff = amp * phase_extra
+    else:
+        amp_eff = amp
     field = np.empty(theta.shape[0], dtype=complex)
     for i in range(theta.shape[0]):
         ph = k * rho * (u[i] * cos_phi + v[i] * sin_phi)
-        field[i] = np.sum(amp * np.exp(1j * ph) * dA)
+        field[i] = np.sum(amp_eff * np.exp(1j * ph) * dA)
 
 
     if obliquity:
