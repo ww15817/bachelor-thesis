@@ -38,7 +38,7 @@ from common.cassegrain import Cassegrain, default_20lambda
 from go_po.feed import cos_power_pattern
 from go_po.geometry import build_polar_grid
 from go_po.po import analytic_uniform_circular_aperture, far_field_aperture
-from go_po.rays import trace_rays
+from go_po.rays import feed_half_angle_for_edge, trace_rays
 
 
 def db(x):
@@ -75,9 +75,16 @@ def aperture_from_rays(geo: Cassegrain, bundle, feed_pattern):
     uniq, idx = np.unique(np.round(rho_s, 6), return_index=True)
     avg = np.array([amp_s[idx[i]:idx[i + 1]].mean() if i + 1 < len(idx) else amp_s[idx[i]:].mean()
                     for i in range(len(idx))])
-    # 末端补一个点，保证插值覆盖到口径边缘
+    # 末端补一个点，保证插值覆盖到口径边缘。
+    # 2026-11-05 审查 C-18：这里原来是把最外环常数外推（avg[-1]），
+    # 但 θ 中点采样到不了 θe，外推值其实是 0.98R 处的；补解析值才对。
+    theta_edge = float(feed_half_angle_for_edge(geo))
+    edge_amp = float(
+        feed_pattern(np.array([theta_edge]))[0]
+        * np.cos(theta_edge / 2.0) ** 2 / (geo.M * geo.F)
+    )
     uniq = np.append(uniq, geo.R)
-    avg = np.append(avg, avg[-1])
+    avg = np.append(avg, edge_amp)
     return uniq, avg
 
 

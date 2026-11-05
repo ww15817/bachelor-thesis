@@ -29,8 +29,9 @@ def main() -> int:
     root = Path(__file__).resolve().parent.parent
     base = load_config(root / "cases" / "cassegrain_20lambda.yaml")
 
-    print(f"{'q':>5} {'溢出':>7} {'照明':>7} {'总效率':>8} {'绝对增益':>9}")
-    print("-" * 42)
+    print("照明列是全口径诊断量，不是总效率的因子（总效率 = 溢出 × 口径效率）")
+    print(f"{'q':>5} {'溢出':>7} {'照明(诊断)':>9} {'总效率':>8} {'绝对增益':>9}")
+    print("-" * 46)
     rows = []
     for q in Q_LIST:
         # 只改 q，保留 feed 里其余字段（审查 C-10：直接替换 FeedConfig 会把
@@ -45,7 +46,7 @@ def main() -> int:
         total = float(m["总效率"])
         gain = float(m["绝对增益"].split()[0])
         rows.append((q, spill, illum, total, gain))
-        print(f"{q:5.1f} {spill:7.4f} {illum:7.4f} {total:8.4f} {gain:9.2f}")
+        print(f"{q:5.1f} {spill:7.4f} {illum:9.4f} {total:8.4f} {gain:9.2f}")
 
     best = max(rows, key=lambda r: r[4])
     # 基线从本次扫描里取，不写死字面量（审查 C-10：改了口径这里会自动跟着变）

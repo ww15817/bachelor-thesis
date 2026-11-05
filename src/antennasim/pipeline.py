@@ -77,7 +77,17 @@ def _aperture_from_rays(geo: Cassegrain, bundle, feed_pattern):
         amp_s[idx[i]:idx[i + 1]].mean() if i + 1 < len(idx) else amp_s[idx[i]:].mean()
         for i in range(len(idx))
     ])
-    return np.append(uniq, geo.R), np.append(avg, avg[-1])
+    # 表尾补 R 处的**解析**幅度，而不是把最外环常数外推过去。
+    # 2026-11-05 审查 C-18：θ 用中点采样（(i+0.5)/n·θmax）永远到不了 θe，
+    # 表尾那个值其实是 0.98R 处的，把「口径边缘锥削」印成 −1.83 dB，
+    # 而解析真值（cos⁴(θe)·cos²(θe/2)）是 −1.91 dB，系统性偏亮 0.07 dB。
+    # 幅度模型本来就是 θ 的解析函数，直接用 θe 取一次即可。
+    theta_edge = float(feed_half_angle_for_edge(geo))
+    edge_amp = float(
+        feed_pattern(np.array([theta_edge]))[0]
+        * np.cos(theta_edge / 2.0) ** 2 / (geo.M * geo.F)
+    )
+    return np.append(uniq, geo.R), np.append(avg, edge_amp)
 
 
 def run_pipeline(
