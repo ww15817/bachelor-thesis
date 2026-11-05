@@ -91,6 +91,48 @@ def solve_plate(a: float, t: float, E: float, nu: float, q: float, n_cell: int):
     return w_center, D
 
 
+def export_deflection(out_path: str, a: float = 0.3, t: float = 0.002,
+                      E: float = 70e9, nu: float = 0.3, n_cell: int = 80) -> str:
+    """解一次板，把变形场导成 ``x, y, w``（米）存 npz，供耦合链路读取。
+
+    这样「结构 → 相位 → 远场」里的第一步就可以换成有限元的真实变形场，
+    而不是解析挠度。注意 ISSUE-017：简支边条件用的是近似，w 偏低约 5.4%。
+    """
+    q = 2700.0 * 9.81 * t          # 自重面载荷
+    w_center, D = solve_plate(a, t, E, nu, q, n_cell)
+
+    # 重新解一次只为拿到函数值（solve_plate 只返回中心点）
+    msh = mesh.create_rectangle(
+        MPI.COMM_WORLD, [[-a, -a], [a, a]], [n_cell, n_cell],
+        cell_type=mesh.CellType.triangle,
+    )
+    V = fem.functionspace(msh, ("Lagrange", 1))
+    u, v = ufl.TrialFunction(V), ufl.TestFunction(V)
+
+    def on_edge(x):
+        return np.isclose(np.abs(x[0]), a) | np.isclose(np.abs(x[1]), a)
+
+    fdim = msh.topology.dim - 1
+    facets = mesh.locate_entities_boundary(msh, fdim, on_edge)
+    dofs = fem.locate_dofs_topological(V, fdim, facets)
+    bc = fem.dirichletbc(fem.Constant(msh, 0.0), dofs, V)
+    bilinear = ufl.dot(ufl.grad(u), ufl.grad(v)) * ufl.dx
+
+    M_h = LinearProblem(
+        bilinear, fem.Constant(msh, q) * v * ufl.dx, bcs=[bc],
+        petsc_options_prefix="export_M",
+    ).solve()
+    w_h = LinearProblem(
+        bilinear, M_h / D * v * ufl.dx, bcs=[bc],
+        petsc_options_prefix="export_w",
+    ).solve()
+
+    coords = V.tabulate_dof_coordinates()
+    np.savez(out_path, x=coords[:, 0], y=coords[:, 1],
+             w=w_h.x.array, a=a, t=t, D=D, w_center=w_center)
+    return out_path
+
+
 def main() -> int:
     # 600 mm 口径的反射面板：半径 300 mm，铝，2 mm 厚，只算自重
     a = 0.3
@@ -110,6 +152,9 @@ def main() -> int:
             rel = (w_num - w_ref) / w_ref
             print(f"{t_mm:7.1f} {t/a:7.4f} {n_cell:6d} "
                   f"{w_num*1e6:11.4f}μm {w_ref*1e6:11.4f}μm {rel:+9.2%}")
+    # 导出一份变形场供耦合链路用
+    out = export_deflection("data/feeds/plate_deflection_2mm.npz", t=0.002)
+    print(f"变形场已导出: {out}")
     return 0
 
 

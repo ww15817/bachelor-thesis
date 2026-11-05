@@ -48,10 +48,27 @@ def plate_deflection(r_m: np.ndarray, a_m: float, t_m: float, load_pa: float) ->
 
 def main() -> int:
     a_m = R_NORM * LAMBDA_M           # 300 mm
+    use_fem = "--fem" in sys.argv
 
     print(f"{'厚度 (mm)':>9} {'w_max (μm)':>11} {'σ_w/λ':>9} "
           f"{'σ_φ (rad)':>10} {'PO 损失':>9} {'Ruze':>9}")
     print("-" * 64)
+
+    fem = None
+    if use_fem:
+        # 有限元变形场（plate_bending.py 导出）：散点 → 插值器
+        from scipy.interpolate import griddata
+        path = Path(__file__).resolve().parent.parent / "data" / "feeds" / "plate_deflection_2mm.npz"
+        if not path.exists():
+            print(f"缺少 {path}，先在 WSL 里跑 src/fenics/plate_bending.py")
+            return 1
+        d = np.load(path)
+        fx, fy, fw = d["x"], d["y"], d["w"]
+
+        def fem(x_m, y_m):
+            return griddata((fx, fy), fw, (x_m, y_m), method="linear", fill_value=0.0)
+
+        print(f"[模式] 有限元变形场：{path.name}（简支边近似，偏低约 5.4%，见 ISSUE-017）")
 
     for t_mm in (2.0, 5.0, 10.0, 20.0):
         t_m = t_mm / 1000.0
@@ -63,7 +80,11 @@ def main() -> int:
         r_norm = np.hypot(af0.x, af0.y)
         r_m = r_norm * LAMBDA_M
 
-        w_m = plate_deflection(r_m, a_m, t_m, load)
+        if fem is not None and t_mm == 2.0:
+            # FEM 只算了 2 mm 那一档
+            w_m = fem(af0.x * LAMBDA_M, af0.y * LAMBDA_M)
+        else:
+            w_m = plate_deflection(r_m, a_m, t_m, load)
         sigma_w_lambda = float(np.std(w_m)) / LAMBDA_M
 
         # 变形 → 口径相位：dφ = 2kw = 4π w/λ
