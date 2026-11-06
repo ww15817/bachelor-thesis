@@ -13,6 +13,7 @@
 | `q_scan.png` | 第 5 章·馈源优化 | `work/make_figures.py` | 最优 q=47 是平台（47–64），不是单点 |
 | `deflection_map.png` | 第 6 章·变形场 | `work/make_figures.py` | 左：FEM 变形 w（0–543 μm）；右：口径相位 4πw/λ（0–0.225 rad） |
 | `spill_schematic.png` | 第 5 章·溢出 | `work/make_figures.py` | 按 cos⁸θ 功率密度画，**面积即功率占比**：35.6% 打到副面、64% 溢出 |
+| `pattern_compare.png` | 第 6 章·耦合影响 | `work/make_figures.py` | **变形 ×10** 才有可见差别：主瓣变宽、零点被填、副瓣从 −18 抬到 −14 dB。真实 2 mm 板只掉 0.014 dB，画不出差别（那本身是结论） |
 | `surface_error.png` | 第 6 章·灵敏度 | `work/make_figures.py` | 随机相位屏下 PO 与 Ruze 一致；确定性变形另有 ISSUE-018 |
 | `cassegrain_fd05.png` | 第 4 章·F/D 对照 | `run_pipeline.py cases/cassegrain_fd05.yaml` | fd05 比 20λ 差 1.59 dB |
 

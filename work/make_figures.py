@@ -206,6 +206,55 @@ def fig_spill_schematic() -> None:
     print("出图: spill_schematic.png（面积按功率密度）")
 
 
+def fig_pattern_compare() -> None:
+    """结构变形对方向图的影响：把变形放大 10 倍才看得出差别。
+
+    真实 2 mm 板的相位损失只有 −0.014 dB，主瓣内两条线完全重合——那本身是结论，
+    但图上画不出东西。所以这张图用**放大 10 倍**的变形（−1.585 dB），
+    让读者看见「结构变形怎么改变主瓣和近轴旁瓣」，正文里注明倍率。
+    """
+    from scipy.interpolate import griddata
+    d = np.load(ROOT / "data" / "feeds" / "plate_deflection_2mm.npz")
+    fx, fy, fw = d["x"], d["y"], d["w"]
+    lam = 0.030
+    edge = -1.91
+    R = 10.0
+    scale = 10.0
+
+    theta = np.linspace(0.0, 6.0, 601)
+    base = tapered_aperture(R, edge_taper_db=edge, n_per_lambda=10.0)
+    ref = axial_amplitude(base)
+
+    def phase(rho, phi_a):
+        x = np.asarray(rho) * np.cos(phi_a)
+        y = np.asarray(rho) * np.sin(phi_a)
+        w = griddata((fx / lam, fy / lam), fw, (x, y), method="linear", fill_value=0.0)
+        return 4.0 * np.pi * (w * scale / lam)
+
+    p0 = far_field_pattern(base, theta, normalize=ref)
+    af1 = tapered_aperture(R, edge_taper_db=edge, n_per_lambda=10.0)
+    r_norm = np.hypot(af1.x, af1.y)
+    phi_pts = np.arctan2(af1.y, af1.x)
+    af1.e = af1.e * np.exp(1j * phase(r_norm, phi_pts))
+    p1 = far_field_pattern(af1, theta, normalize=ref)
+
+    fig, ax = plt.subplots(figsize=(6.4, 4.0))
+    ax.plot(theta, 20*np.log10(np.clip(p0, 1e-6, None)), label="无变形", color="#3a6ea5")
+    ax.plot(theta, 20*np.log10(np.clip(p1, 1e-6, None)), "--",
+            label="变形 ×10（≈ −1.6 dB）", color="#c0504d")
+    ax.set_xlabel("θ (deg)")
+    ax.set_ylabel("归一化方向图 (dB)")
+    ax.set_title("结构变形对方向图的影响（20λ，10 GHz；真实 2 mm 板只掉 0.014 dB）", fontsize=9)
+    ax.set_xlim(0, 6.0)
+    ax.set_ylim(-40, 0.5)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+    fig.savefig(OUT / "pattern_compare.png", dpi=160)
+    plt.close(fig)
+    print("出图: pattern_compare.png（变形 ×10，真实值 0.014 dB 画不出差别）")
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     fig_budget()
@@ -213,6 +262,7 @@ def main() -> int:
     fig_surface_error()
     fig_deflection_map()
     fig_spill_schematic()
+    fig_pattern_compare()
     return 0
 
 
