@@ -255,6 +255,53 @@ def fig_pattern_compare() -> None:
     print("出图: pattern_compare.png（变形 ×10，真实值 0.014 dB 画不出差别）")
 
 
+def fig_chain_diagram() -> None:
+    """链路总框图：三个开源工具 + 耦合回路。"""
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
+    fig, ax = plt.subplots(figsize=(9.0, 4.6))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 5.2)
+    ax.axis("off")
+
+    boxes = [
+        (0.4, 3.2, 2.4, 1.3, "openEMS\n(FDTD 全波)", "#9ec5e8", "算馈源\n销钉喇叭"),
+        (3.7, 3.2, 2.6, 1.3, "自研 GO/PO\n(高频近似)", "#a8d5a2", "算远场\n方向图 + 增益"),
+        (7.0, 3.2, 2.6, 1.3, "FEniCSx\n(有限元)", "#e8c4a0", "算面板变形\nw(x, y)"),
+    ]
+    for x, y, w, h, title, color, sub in boxes:
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.08",
+                                    facecolor=color, edgecolor="k", lw=1.2))
+        ax.text(x + w/2, y + h*0.70, title, ha="center", va="center",
+                fontsize=10, weight="bold")
+        ax.text(x + w/2, y + h*0.24, sub, ha="center", va="center", fontsize=8)
+
+    # 主链：openEMS -> GO/PO
+    ax.add_patch(FancyArrowPatch((2.82, 3.85), (3.68, 3.85), arrowstyle="-|>",
+                                 mutation_scale=16, lw=1.5, color="k",
+                                 shrinkA=0, shrinkB=0))
+
+    # 耦合回路：FEniCSx 底 -> 下 -> 左 -> 上到 GO/PO 底（U 形，避开盒子）
+    pts = [(8.3, 3.2), (8.3, 2.2), (5.0, 2.2), (5.0, 3.18)]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        ax.add_patch(FancyArrowPatch((x0, y0), (x1, y1), arrowstyle="-",
+                                     lw=1.5, color="#555555", shrinkA=0, shrinkB=0))
+    ax.add_patch(FancyArrowPatch((5.0, 2.5), (5.0, 3.18), arrowstyle="-|>",
+                                 mutation_scale=16, lw=1.5, color="#555555",
+                                 shrinkA=0, shrinkB=0))
+    ax.text(6.65, 2.05, "口径相位  dφ = 4πw/λ", fontsize=9, ha="center", color="#333333")
+
+    ax.text(5.0, 1.35, "同一条命令跑完：feed.source = npz  +  structure.enabled = true",
+            ha="center", fontsize=9, style="italic")
+    ax.text(5.0, 0.85, "每一段都对上解析解：Airy 7e-06 / 共焦 4e-16 / 幅度守恒 5e-15",
+            ha="center", fontsize=8.5, color="#444444")
+    ax.set_title("全开源反射面天线分析链路", fontsize=12, pad=8)
+    fig.tight_layout()
+    fig.savefig(OUT / "chain_diagram.png", dpi=160)
+    plt.close(fig)
+    print("出图: chain_diagram.png")
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     fig_budget()
@@ -263,6 +310,7 @@ def main() -> int:
     fig_deflection_map()
     fig_spill_schematic()
     fig_pattern_compare()
+    fig_chain_diagram()
     return 0
 
 
