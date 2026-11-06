@@ -139,11 +139,80 @@ def fig_surface_error() -> None:
     print("出图: surface_error.png")
 
 
+def fig_deflection_map() -> None:
+    """有限元变形场云图 + 口径相位分布。"""
+    from scipy.interpolate import griddata
+    d = np.load(ROOT / "data" / "feeds" / "plate_deflection_2mm.npz")
+    fx, fy, fw = d["x"], d["y"], d["w"]
+    lam = 0.030
+
+    g = np.linspace(-0.3, 0.3, 160)
+    X, Y = np.meshgrid(g, g)
+    W = griddata((fx, fy), fw, (X, Y), method="linear", fill_value=np.nan)
+    mask = X**2 + Y**2 > 0.3**2
+    W[mask] = np.nan
+
+    fig, axes = plt.subplots(1, 2, figsize=(9.0, 4.0))
+    im0 = axes[0].pcolormesh(X * 1000, Y * 1000, W * 1e6, shading="auto", cmap="viridis")
+    axes[0].set_xlabel("x (mm)")
+    axes[0].set_ylabel("y (mm)")
+    axes[0].set_title("面板变形 w（2 mm 铝板，自重）", fontsize=10)
+    axes[0].set_aspect("equal")
+    fig.colorbar(im0, ax=axes[0], label="w (μm)")
+
+    im1 = axes[1].pcolormesh(X * 1000, Y * 1000, 4*np.pi*W/lam, shading="auto", cmap="magma")
+    axes[1].set_xlabel("x (mm)")
+    axes[1].set_ylabel("y (mm)")
+    axes[1].set_title("口径相位扰动 4πw/λ（λ=30 mm）", fontsize=10)
+    axes[1].set_aspect("equal")
+    fig.colorbar(im1, ax=axes[1], label="dφ (rad)")
+
+    fig.tight_layout()
+    fig.savefig(OUT / "deflection_map.png", dpi=160)
+    plt.close(fig)
+    print("出图: deflection_map.png")
+
+
+def fig_spill_schematic() -> None:
+    """馈源功率去向：按 cos^q 功率密度画，面积就是功率比例。"""
+    q = 8.0
+    th_e = 17.7613
+    th_main = 72.65
+    theta = np.linspace(0.0, 90.0, 721)
+    p = np.cos(np.deg2rad(theta)) ** q
+
+    fig, ax = plt.subplots(figsize=(6.0, 4.0))
+    m1 = theta <= th_e
+    m2 = (theta > th_e) & (theta <= th_main)
+    m3 = theta > th_main
+    ax.fill_between(theta[m1], 0, p[m1], color="#9ec5e8",
+                    label=f"打到副面（θ ≤ {th_e:.1f}°，35.6%）")
+    ax.fill_between(theta[m2], 0, p[m2], color="#e8a87c",
+                    label="溢出（64% 功率）")
+    ax.fill_between(theta[m3], 0, p[m3], color="#e8d47c",
+                    label=f"打到主面后散射（θ > {th_main:.1f}°）")
+    ax.axvline(th_e, color="k", lw=1.0, ls="--")
+    ax.axvline(th_main, color="k", lw=1.0, ls=":")
+    ax.set_xlim(0, 90)
+    ax.set_ylim(0, 1.05)
+    ax.set_xlabel("馈源出射角 θ (deg)")
+    ax.set_ylabel("功率密度 cos⁸θ（归一化）")
+    ax.set_title("q=8 馈源的功率去向：面积即功率占比", fontsize=11)
+    ax.legend(fontsize=8, loc="upper right")
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(OUT / "spill_schematic.png", dpi=160)
+    plt.close(fig)
+    print("出图: spill_schematic.png（面积按功率密度）")
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     fig_budget()
     fig_qscan()
     fig_surface_error()
+    fig_deflection_map()
+    fig_spill_schematic()
     return 0
 
 

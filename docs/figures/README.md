@@ -11,6 +11,8 @@
 | `cassegrain_20lambda.png` | 第 4 章·主算例方向图 | `run_pipeline.py cases/cassegrain_20lambda.yaml` | 主瓣、第一副瓣、遮挡台阶 |
 | `budget_waterfall.png` | 第 4 章·效率预算 | `work/make_figures.py` | 理想 35.96 → 溢出 −4.49 → 锥削+遮挡 −0.22 → 31.24 dBi |
 | `q_scan.png` | 第 5 章·馈源优化 | `work/make_figures.py` | 最优 q=47 是平台（47–64），不是单点 |
+| `deflection_map.png` | 第 6 章·变形场 | `work/make_figures.py` | 左：FEM 变形 w（0–543 μm）；右：口径相位 4πw/λ（0–0.225 rad） |
+| `spill_schematic.png` | 第 5 章·溢出 | `work/make_figures.py` | 按 cos⁸θ 功率密度画，**面积即功率占比**：35.6% 打到副面、64% 溢出 |
 | `surface_error.png` | 第 6 章·灵敏度 | `work/make_figures.py` | 随机相位屏下 PO 与 Ruze 一致；确定性变形另有 ISSUE-018 |
 | `cassegrain_fd05.png` | 第 4 章·F/D 对照 | `run_pipeline.py cases/cassegrain_fd05.yaml` | fd05 比 20λ 差 1.59 dB |
 
